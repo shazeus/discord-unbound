@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { once } = require('node:events');
-const { allowedHost, allowedTarget, publicIPv4, FirstRecordSplitter, createBridge, installElectronHook, rewriteManifest, wrapNativeUpdater } = require('../src/bridge-hook.cjs');
+const { allowedHost, allowedTarget, publicIPv4, FirstRecordSplitter, createBridge, installElectronHook, rewriteManifest, wrapNativeUpdater, checkedUpdateUrl } = require('../src/bridge-hook.cjs');
 function record(payload) { const h = Buffer.from([22, 3, 1, 0, 0]); h.writeUInt16BE(payload.length, 3); return Buffer.concat([h, payload]); }
 function unpack(bytes) {
   const parts = []; let n = 0;
@@ -61,6 +61,40 @@ test('configured proxy port validates strictly and retains loopback binding', as
   const bridge = await createBridge({ port: 0 }); t.after(() => bridge.close());
   assert.ok(bridge.port > 0 && bridge.port <= 65535);
   assert.match(bridge.pacUrl, /^http:\/\/127\.0\.0\.1:/);
+});
+
+test('checkout providers remain DIRECT while official gift and support links use the bridge', async t => {
+  const bridge = await createBridge(); t.after(() => bridge.close());
+  const source = await (await fetch(bridge.pacUrl)).text();
+  const context = { dnsDomainIs: (host, suffix) => host.endsWith(suffix) }; vm.createContext(context); vm.runInContext(source, context);
+  for (const host of ['js.stripe.com', 'api.stripe.com', 'checkout.stripe.com', 'www.paypal.com', 'payments.braintree-api.com', 'hcaptcha.com', 'accounts.google.com']) {
+    assert.equal(context.FindProxyForURL('https://' + host + '/', host), 'DIRECT');
+  }
+  for (const host of ['discord.gift', 'dis.gd', 'support.discord.com']) assert.equal(context.FindProxyForURL('https://' + host, host), 'PROXY 127.0.0.1:' + bridge.port);
+  for (const host of ['discord.gift.evil.test', 'dis.gd.evil.test', 'untrusted.dis.gd']) assert.equal(context.FindProxyForURL('https://' + host, host), 'DIRECT');
+  for (const host of ['discord.gift', 'dis.gd']) {
+    assert.equal(allowedTarget(host, 443), true);
+    assert.equal(allowedTarget(host, 80), false);
+    assert.throws(() => checkedUpdateUrl('https://' + host + '/package'), /Unapproved/);
+  }
+});
+
+test('plain HTTP Discord navigations upgrade to HTTPS without relaying bodies', async t => {
+  let resolved = false;
+  const bridge = await createBridge({ resolve: async () => { resolved = true; throw new Error('not used'); } }); t.after(() => bridge.close());
+  const request = (target, method = 'GET') => new Promise((resolve, reject) => {
+    const outgoing = http.request({ host: '127.0.0.1', port: bridge.port, path: target, method }, response => {
+      response.resume(); response.on('end', () => resolve({ status: response.statusCode, location: response.headers.location }));
+    }); outgoing.on('error', reject); outgoing.end();
+  });
+  for (const target of ['http://discord.com/nitro?ref=test', 'http://discord.gift/not-a-real-gift', 'http://dis.gd/contact']) {
+    const result = await request(target); assert.equal(result.status, 307);
+    assert.equal(result.location, target.replace('http:', 'https:'));
+  }
+  assert.equal((await request('http://discord.com/nitro', 'HEAD')).status, 307);
+  assert.equal((await request('http://discord.com/api/payments', 'POST')).status, 405);
+  for (const target of ['http://discord.com.evil.test/', 'http://user:pass@discord.com/', 'http://discord.com:8080/']) assert.equal((await request(target)).status, 403);
+  assert.equal(resolved, false); assert.equal(bridge.status.httpUpgrades, 4);
 });
 test('CONNECT rejects unapproved domains and ports before resolving', async t => {
   let called = false; const bridge = await createBridge({ resolve: () => { called = true; throw new Error('unexpected'); } }); t.after(() => bridge.close());

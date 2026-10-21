@@ -96,7 +96,9 @@ Gözlemci yaklaşık üç saniyede bir sürüm dizinlerini kontrol eder. Arşiv 
 | Ses kontrolü | `discord.media:2053`, WebSocket 101, HELLO opcode 8 |
 | Güncelleme kontrolü | Yerel güncelleyici manifest kontrolünü geçerek ana ekranı açtı |
 | Paket bütünlüğü | 19.137 baytlık resmi modül paketi indirildi; SHA-256 manifestle eşleşti |
-| Otomatik testler | 19 Python + 12 Node.js testi |
+| Otomatik testler | 19 Python + 14 Node.js testi |
+
+**Satın alma kapsamı:** Nitro'nun genel sayfası ve Stripe'ın genel SDK bağlantısı izole Electron testinde açıldı. Gerçek satın alma, abonelik veya 3D Secure işlemi yapılmadı. Ödeme sağlayıcıları doğrudan bağlantıda kalır. İşletim sistemi tarayıcısında açılan akışlar bu uygulamanın PAC ayarını kullanmaz. [Ayrıntılı uyumluluk incelemesi](docs/COMPATIBILITY.md).
 
 Bu sonuçlar incelenen bilgisayar ve bağlantı içindir. Diğer internet sağlayıcıları ve Discord sürümleri için aynı sonucu garanti etmez. Windows ARM64/32 bit, macOS ve Linux desteği doğrulanmadı. Video, ekran paylaşımı ve daha yeni bir ana Discord sürümünün baştan sona kurulması henüz test edilmedi. Hazır çalıştırılabilir dosya bu sürümde kod imzalı değildir.
 

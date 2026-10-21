@@ -11,9 +11,13 @@ const Module = require('node:module');
 const fs = require('node:fs');
 const path = require('node:path');
 const SUFFIXES = ['discord.com', 'discord.gg', 'discordapp.com', 'discordapp.net', 'discord.media'];
+const LINK_HOSTS = ['discord.gift', 'dis.gd'];
+function coreHost(host) {
+  return SUFFIXES.some(suffix => host === suffix || host.endsWith('.' + suffix));
+}
 function allowedHost(host) {
   return typeof host === 'string' && host.length <= 253 && /^[a-z0-9.-]+$/i.test(host) &&
-    SUFFIXES.some(suffix => host.toLowerCase() === suffix || host.toLowerCase().endsWith('.' + suffix));
+    (coreHost(host.toLowerCase()) || LINK_HOSTS.includes(host.toLowerCase()));
 }
 function allowedTarget(host, port) {
   if (!allowedHost(host) || !Number.isInteger(port) || port < 1 || port > 65535) return false;
@@ -97,11 +101,11 @@ function makeResolver(status) {
   };
 }
 function pac(port) {
-  return 'function FindProxyForURL(url, host) { host = host.toLowerCase(); var roots = ' + JSON.stringify(SUFFIXES) + '; for (var i=0;i<roots.length;i++) { if(host===roots[i] || dnsDomainIs(host,"."+roots[i])) return "PROXY 127.0.0.1:' + port + '"; } return "DIRECT"; }';
+  return 'function FindProxyForURL(url, host) { host = host.toLowerCase(); var roots = ' + JSON.stringify(SUFFIXES) + '; var links = ' + JSON.stringify(LINK_HOSTS) + '; for (var i=0;i<roots.length;i++) { if(host===roots[i] || dnsDomainIs(host,"."+roots[i])) return "PROXY 127.0.0.1:' + port + '"; } for(var j=0;j<links.length;j++) { if(host===links[j]) return "PROXY 127.0.0.1:' + port + '"; } return "DIRECT"; }';
 }
 function checkedUpdateUrl(value) {
   const url = new URL(value);
-  if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') || !allowedHost(url.hostname)) throw new Error('Unapproved update URL');
+  if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') || !coreHost(url.hostname)) throw new Error('Unapproved update URL');
   return url;
 }
 function rewriteManifest(value, updateUrl) {
@@ -131,7 +135,7 @@ function wrapNativeUpdater(native, bridge) {
 async function createBridge(options = {}) {
   const requestedPort = options.port === undefined ? 0 : options.port;
   if (!Number.isInteger(requestedPort) || requestedPort < 0 || requestedPort > 65535) throw new Error('Invalid loopback proxy port');
-  const status = { experimental: true, udpSupported: false, connections: 0, failures: 0, updateRequests: 0, manifestsRewritten: 0, nativeUpdaterConstructs: 0, nativeUpdaterConstructed: false, resolverMode: 'unused' };
+  const status = { experimental: true, udpSupported: false, connections: 0, failures: 0, httpUpgrades: 0, updateRequests: 0, manifestsRewritten: 0, nativeUpdaterConstructs: 0, nativeUpdaterConstructed: false, resolverMode: 'unused' };
   const resolve = options.resolve || makeResolver(status);
   const connect = options.connect || ((address, port) => net.connect({ host: address, port }));
   const sockets = new Set();
@@ -186,6 +190,20 @@ async function createBridge(options = {}) {
       response.end(pac(server.address().port));
     } else if ((request.url || '').startsWith('/updates/')) {
       forwardUpdate(request, response).catch(() => { status.failures++; if (response.headersSent) response.destroy(); else { response.writeHead(502); response.end(); } });
+    } else if (/^http:\/\//i.test(request.url || '')) {
+      // An HTTP proxy receives the absolute URL. Upgrade only navigations; never
+      // forward a plaintext request body or synthesize payment/API responses.
+      let target;
+      try { target = new URL(request.url); } catch { response.writeHead(400); response.end(); return; }
+      if (!allowedHost(target.hostname) || target.username || target.password || (target.port && target.port !== '80')) {
+        response.writeHead(403); response.end(); return;
+      }
+      if (!['GET', 'HEAD'].includes(request.method)) {
+        response.writeHead(405, { Allow: 'GET, HEAD' }); response.end(); return;
+      }
+      target.protocol = 'https:'; target.port = '';
+      status.httpUpgrades++;
+      response.writeHead(307, { Location: target.href, 'Cache-Control': 'no-store', 'Content-Length': '0' }); response.end();
     } else { response.writeHead(404); response.end(); }
   });
   server.on('connection', track);

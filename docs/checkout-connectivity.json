@@ -1,0 +1,24 @@
+{
+  "scope": "Unauthenticated public pages and controlled private Electron runtime; no checkout session, payment or 3D Secure performed.",
+  "result": {
+    "beforeReady": true,
+    "status": 200,
+    "nitroLandingStatus": 200,
+    "stripePublicSdkStatus": 200,
+    "artifactStatus": 200,
+    "artifactBytes": 19137,
+    "artifactHashMatches": true,
+    "runtime": {
+      "experimental": true,
+      "udpSupported": false,
+      "connections": 1,
+      "failures": 0,
+      "httpUpgrades": 0,
+      "updateRequests": 1,
+      "manifestsRewritten": 0,
+      "nativeUpdaterConstructs": 0,
+      "nativeUpdaterConstructed": false,
+      "resolverMode": "doh"
+    }
+  }
+}

@@ -103,7 +103,9 @@ The observer checks version directories approximately every three seconds. An ar
 | Voice signaling | `discord.media:2053`, WebSocket 101, HELLO opcode 8 |
 | Update check | Native updater passed its manifest check and the main UI opened |
 | Package integrity | Official 19,137-byte module downloaded; SHA-256 matched its manifest |
-| Automated tests | 19 Python + 12 Node.js tests, including release migration checks |
+| Automated tests | 19 Python + 14 Node.js tests, including release migration checks |
+
+**Purchase coverage:** The public Nitro page and Stripe's public SDK loaded in an isolated Electron test. No real purchase, subscription or 3-D Secure transaction was attempted. Payment providers remain direct. Flows opening the operating-system browser do not use the application's PAC settings. See the [compatibility audit](docs/COMPATIBILITY.md).
 
 These results apply to the tested machine and network. They do not guarantee the same result with other providers or Discord versions. Windows ARM64/32-bit, macOS and Linux are unverified. Video, screen sharing and installing a newer main Discord version end to end have not been tested. This release's executable is not code-signed.
 

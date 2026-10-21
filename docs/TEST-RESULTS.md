@@ -2,7 +2,7 @@
 
 - 19 Python tests passed: ASAR parsing and restoration, tamper detection,
   fuse checks, version discovery, open-process protection and hook migration.
-- 12 Node tests passed: TLS framing, PAC scope, ports, native updater adapter,
+- 14 Node tests passed: TLS framing, PAC scope, ports, native updater adapter,
   manifest URL rewriting, preserved hashes and binary streaming.
 - Public HTTPS / Gateway A/B probes passed with GoodbyeDPI stopped:
   direct Discord requests reset; bridge API, app page and avatar returned 200.
@@ -26,3 +26,15 @@ read account tokens. Original ASAR bytes are backed up beside the installation.
 
 See `live-result.json` for public network probe details and `RESEARCH.md` for
 artifact identities, analysis scope and the native updater investigation.
+
+## 0.1.1 compatibility patch
+
+The original plain-HTTP proxy path returned 404 for a Discord navigation; the
+patched handler returns an HTTPS 307 upgrade. Gift and support short links now
+have exact-host scope. Tests verify payment-provider domains remain DIRECT and
+that POST bodies are not forwarded by the HTTP navigation handler.
+
+In a private Electron runtime, the public Nitro page and Stripe SDK returned 200;
+the official update module retained its expected hash. This does not verify a
+purchase, subscription, gift redemption or 3-D Secure transaction. See
+`COMPATIBILITY.md` and `checkout-connectivity.json` for scope and results.

@@ -178,7 +178,7 @@ def gui():
     import tkinter as tk
     from tkinter import ttk
     import patcher
-    root = tk.Tk(); root.title('Discord Unbound | Deneysel 0.1'); root.geometry('720x490'); root.minsize(640, 440)
+    root = tk.Tk(); root.title('Discord Unbound | Deneysel 0.1.1'); root.geometry('720x490'); root.minsize(640, 440)
     assets = HERE / 'assets' if getattr(sys, 'frozen', False) else Path(__file__).resolve().parents[1] / 'assets'
     root._brand_icon = tk.PhotoImage(file=str(assets / 'discord-unbound-icon.png'))
     root.iconphoto(True, root._brand_icon)
@@ -237,7 +237,7 @@ def main():
         elif sys.stdout is not None: print(data)
     if args.watch: return run_watcher()
     if args.version:
-        emit({'version': '0.1.0', 'hook_sha256': hashlib.sha256(hook_source().encode('utf-8')).hexdigest()}); return
+        emit({'version': '0.1.1', 'hook_sha256': hashlib.sha256(hook_source().encode('utf-8')).hexdigest()}); return
     if args.list:
         emit([str(p) for p in find_asars()]); return
     if args.asar:
