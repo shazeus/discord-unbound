@@ -62,6 +62,18 @@ Bu sürüm geçerli kullanıcının varsayılan LAN internet ayarını kullanır
 
 Web modunda TLS sertifika doğrulaması açık kalır. Ödeme sağlayıcıları doğrudan gider; gerçek ödeme veya 3D Secure işlemi test edilmiş değildir.
 
+## Kaldırma
+
+Discord Unbound taşınabilir bir uygulamadır; Denetim Masası veya **Ayarlar → Uygulamalar** listesine kurulum kaydı eklemez. Tamamen kaldırmak için:
+
+1. Discord'u sistem tepsisindeki simgesinden **tamamen kapat**.
+2. Discord Unbound'u aç, yamaladığın kurulumu seç ve **Orijinale dön** düğmesine bas. Birden fazla kurulumu yamaladıysan her biri için tekrarla. Yalnızca web modunu kullandıysan bu adımı atlayabilirsin.
+3. **Web erişimini kapat** düğmesine bas ve kapandığını doğrula. Bu işlem web yardımcısını durdurur ve önceki Windows proxy/PAC ayarlarını geri yükler.
+4. Discord Unbound penceresini kapat; ZIP'ten çıkardığın uygulama klasörünü ve oluşturduğun kısayolları sil.
+5. İsteğe bağlı olarak `Win + R` ile `%LOCALAPPDATA%\DiscordUnbound` klasörünü açıp kalan durum kayıtlarını sil.
+
+**Önce geri yükle, sonra sil:** orijinale dönüş veya web erişimini kapatma başarısız olursa uygulamayı, yedekleri ve durum kayıtlarını silmeden önce hatayı çöz. Özellikle `web-state.json` önceki proxy ayarlarını içerir; ayarlar geri yüklenmeden silinmemelidir. Bu işlemler Discord hesabını veya orijinal Discord uygulamasını kaldırmaz.
+
 ## Mimari
 
 ```text

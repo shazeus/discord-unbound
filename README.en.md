@@ -69,6 +69,18 @@ This version uses the current user's default LAN internet settings. Browsers wit
 
 TLS certificate validation remains enabled. Payment providers remain direct; a real payment or 3-D Secure transaction is still unverified.
 
+## Uninstalling
+
+Discord Unbound is portable; it does not register an installation in Control Panel or **Settings → Apps**. To remove it completely:
+
+1. **Fully quit Discord** using its system-tray icon.
+2. Open Discord Unbound, select the installation you patched and click **Orijinale dön** — “Restore original.” Repeat for each installation if you patched more than one. Skip this step if you only used web mode.
+3. Click **Web erişimini kapat** — “Disable web access” — and confirm that it is disabled. This stops the web helper and restores the previous Windows proxy/PAC settings.
+4. Close the Discord Unbound window, then delete the application folder extracted from the ZIP and any shortcuts you created.
+5. Optionally press `Win + R`, open `%LOCALAPPDATA%\DiscordUnbound` and delete the remaining state files.
+
+**Restore before deleting:** if restoring the original or disabling web access fails, resolve the error before deleting the application, backups or state files. In particular, `web-state.json` contains the previous proxy settings and must be retained until those settings have been restored. These steps do not delete your Discord account or uninstall the official Discord application.
+
 ## Architecture
 
 ```text
