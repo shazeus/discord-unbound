@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.png binary
+*.ico binary
+README*.md whitespace=-blank-at-eol
+third-party/** -text whitespace=-blank-at-eol,-blank-at-eof

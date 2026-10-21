@@ -1,0 +1,83 @@
+{
+  "checkedAt": "2026-10-21T10:23:39.461Z",
+  "platform": "win32",
+  "direct": {
+    "discovery": {
+      "exit": 35,
+      "httpStatus": 0,
+      "seconds": 0.223502,
+      "tlsVerifyResult": 0
+    },
+    "app": {
+      "exit": 35,
+      "httpStatus": 0,
+      "seconds": 0.09485,
+      "tlsVerifyResult": 0
+    },
+    "gateway": {
+      "exit": 35,
+      "httpStatus": 0,
+      "seconds": 0.227846,
+      "tlsVerifyResult": 0
+    },
+    "cdn": {
+      "exit": 35,
+      "httpStatus": 0,
+      "seconds": 0.196281,
+      "tlsVerifyResult": 0
+    }
+  },
+  "bridge": {
+    "discovery": {
+      "exit": 0,
+      "httpStatus": 200,
+      "seconds": 0.870748,
+      "tlsVerifyResult": 0
+    },
+    "app": {
+      "exit": 0,
+      "httpStatus": 200,
+      "seconds": 0.526416,
+      "tlsVerifyResult": 0
+    },
+    "gateway": {
+      "exit": 0,
+      "httpStatus": 404,
+      "seconds": 0.571702,
+      "tlsVerifyResult": 0
+    },
+    "cdn": {
+      "exit": 0,
+      "httpStatus": 200,
+      "seconds": 0.432147,
+      "tlsVerifyResult": 0
+    }
+  },
+  "limits": [
+    "Unauthenticated public endpoints only.",
+    "Voice, video, screen sharing, login and future updates are not verified by these probes."
+  ],
+  "websocket": {
+    "ok": true,
+    "httpStatus": 101,
+    "helloOpcode": 10,
+    "tlsVerified": true
+  },
+  "voiceSignaling": {
+    "ok": true,
+    "httpStatus": 101,
+    "helloOpcode": 8,
+    "tlsVerified": true
+  },
+  "runtime": {
+    "experimental": true,
+    "udpSupported": false,
+    "connections": 6,
+    "failures": 0,
+    "updateRequests": 0,
+    "manifestsRewritten": 0,
+    "nativeUpdaterConstructs": 0,
+    "nativeUpdaterConstructed": false,
+    "resolverMode": "doh"
+  }
+}
