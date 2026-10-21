@@ -174,11 +174,15 @@ def launch(asar):
     subprocess.Popen(args, cwd=str(root), close_fds=True)
 
 
+def runner():
+    return [sys.executable] if getattr(sys, 'frozen', False) else [sys.executable, str(Path(__file__).resolve())]
+
+
 def gui():
     import tkinter as tk
     from tkinter import ttk
     import patcher
-    root = tk.Tk(); root.title('Discord Unbound | Deneysel 0.1.1'); root.geometry('720x490'); root.minsize(640, 440)
+    root = tk.Tk(); root.title('Discord Unbound | Deneysel 0.2.0'); root.geometry('740x650'); root.minsize(680, 600)
     assets = HERE / 'assets' if getattr(sys, 'frozen', False) else Path(__file__).resolve().parents[1] / 'assets'
     root._brand_icon = tk.PhotoImage(file=str(assets / 'discord-unbound-icon.png'))
     root.iconphoto(True, root._brand_icon)
@@ -216,6 +220,46 @@ def gui():
     buttons = []
     for label, kind in [('Yamala ve aç', 'launch'), ('Yalnızca yamala', 'patch'), ('Orijinale dön', 'restore')]:
         b = ttk.Button(controls, text=label, command=lambda k=kind: action(k)); b.pack(side='left', padx=(0, 10)); buttons.append(b)
+    ttk.Separator(frame).pack(fill='x', pady=(18, 10))
+    ttk.Label(frame, text='Normal tarayıcıda Discord', font=('Segoe UI', 12, 'bold')).pack(anchor='w')
+    ttk.Label(frame, text='Yalnızca Discord adresleri yerel yardımcıdan geçer. Kapatınca önceki Windows PAC ayarı geri yüklenir.', wraplength=670).pack(anchor='w', pady=(4, 8))
+    web_status = tk.StringVar(value='Web erişimi durumu kontrol ediliyor…')
+    ttk.Label(frame, textvariable=web_status).pack(anchor='w')
+    web_controls = ttk.Frame(frame); web_controls.pack(fill='x', pady=(8, 0))
+    web_buttons = []
+    def web_action(kind):
+        for button in web_buttons: button.config(state='disabled')
+        def task():
+            try:
+                import web_access
+                if kind == 'stop': result = web_access.stop()
+                elif kind in ('start', 'open'):
+                    result = web_access.start(runner())
+                    if kind == 'open':
+                        import webbrowser
+                        webbrowser.open('https://discord.com/app')
+                else: result = web_access.status()
+                text = 'Web erişimi açık · yerel yardımcı çalışıyor' if result['active'] else 'Web erişimi kapalı'
+                root.after(0, lambda: web_status.set(text))
+                if result.get('mode') == 'previous-local-pac-unavailable' and kind != 'status':
+                    say('Önceki yerel PAC erişilemiyordu. Adresi yedeklendi; kapatınca geri yüklenecek.')
+            except Exception as exc: say(str(exc))
+            finally: root.after(0, lambda: [button.config(state='normal') for button in web_buttons])
+        threading.Thread(target=task, daemon=True).start()
+    for label, kind in [('Web erişimini aç', 'start'), ('Web erişimini kapat', 'stop'), ('Discord sitesini aç', 'open')]:
+        button = ttk.Button(web_controls, text=label, command=lambda k=kind: web_action(k)); button.pack(side='left', padx=(0, 10)); web_buttons.append(button)
+    def close():
+        def finish():
+            try:
+                import web_access
+                web_access.stop()
+            except Exception as exc:
+                root.after(0, lambda message=str(exc): say('Web yardımcısı: ' + message))
+            finally: root.after(0, root.destroy)
+        for button in web_buttons: button.config(state='disabled')
+        threading.Thread(target=finish, daemon=True).start()
+    root.protocol('WM_DELETE_WINDOW', close)
+    root.after(100, lambda: web_action('status'))
     refresh(); root.mainloop()
 
 
@@ -229,6 +273,11 @@ def main():
     parser.add_argument('--restore', action='store_true')
     parser.add_argument('--launch', action='store_true')
     parser.add_argument('--inspect', action='store_true')
+    parser.add_argument('--web-start', action='store_true', help='Enable Discord-only Windows browser PAC')
+    parser.add_argument('--web-stop', action='store_true', help='Disable web helper and restore previous PAC')
+    parser.add_argument('--web-status', action='store_true', help='Show web helper status without private configuration')
+    parser.add_argument('--web-worker', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--web-guard', type=int, help=argparse.SUPPRESS)
     parser.add_argument('--report', type=Path, help='Write CLI result as JSON (also works with windowed EXE)')
     args = parser.parse_args()
     def emit(value):
@@ -236,8 +285,16 @@ def main():
         if args.report: args.report.write_text(data, encoding='utf-8')
         elif sys.stdout is not None: print(data)
     if args.watch: return run_watcher()
+    if args.web_worker or args.web_guard is not None or args.web_start or args.web_stop or args.web_status:
+        import web_access
+        if args.web_worker: return web_access.worker(runner())
+        if args.web_guard is not None: return web_access.guard(args.web_guard)
+        if args.web_start: emit(web_access.start(runner()))
+        elif args.web_stop: emit(web_access.stop())
+        else: emit(web_access.status())
+        return
     if args.version:
-        emit({'version': '0.1.1', 'hook_sha256': hashlib.sha256(hook_source().encode('utf-8')).hexdigest()}); return
+        emit({'version': '0.2.0', 'hook_sha256': hashlib.sha256(hook_source().encode('utf-8')).hexdigest()}); return
     if args.list:
         emit([str(p) for p in find_asars()]); return
     if args.asar:

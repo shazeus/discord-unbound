@@ -1,5 +1,14 @@
 # Sürüm geçmişi
 
+## 0.2.0 — 21 Ekim 2026
+
+- Normal tarayıcılar için isteğe bağlı, yalnızca Discord'a yönlenen Windows PAC modu.
+- Tek dosyalık pakette bağımsız yerel Python aktarımı; ayrı Node.js gerekmez.
+- Eski PAC/manual proxy kuralını koruma, kalıcı durum yedeği ve sahiplik denetimli geri dönüş.
+- Yardımcı zorla kapatıldığında ayarları geri yükleyen bağımsız kurtarma gözeticisi.
+- Web erişimini aç/kapat ve varsayılan tarayıcıda Discord'u aç düğmeleri.
+- 30 Python + 14 Node.js testi; gerçek Brave sekmesi, Windows PAC ve normal/zorla kapanış geri dönüşü doğrulandı.
+
 ## 0.1.1 — 21 Ekim 2026
 
 - Yerel proxy'ye gelen HTTP Discord GET/HEAD bağlantılarının 404 vermesi düzeltildi;

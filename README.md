@@ -28,7 +28,7 @@ Discord'un arayüzünü yeniden yazmaz; hesap, sunucu ve mesajlaşma özellikler
 ### Temel özellikler
 
 - **Discord'a özel bağlantı yolu:** Discord alan adları Electron oturumunda yerel modüle yönlendirilir; diğer alan adları doğrudan bağlantıda kalır.
-- **Uzak VPN sunucusu gerektirmez:** bilgisayarın genel trafiğini bir tünele almaz; sistemin yönlendirme, DNS, proxy, güvenlik duvarı ve sertifika ayarlarını değiştirmez.
+- **Uzak VPN sunucusu gerektirmez:** bilgisayarın genel trafiğini bir tünele almaz. Masaüstü yaması sistem ayarlarını değiştirmez; isteğe bağlı web modu yalnızca mevcut kullanıcının otomatik proxy/PAC ayarını geçici olarak düzenler ve geri yükler.
 - **TLS kayıt bölümleme:** ilk `ClientHello` mesajının baytlarını koruyarak TLS kayıtlarını küçük parçalara böler. Mesajlaşma bağlantısında TLS çözülmez ve sertifika doğrulaması kapatılmaz.
 - **Yerel güncelleyici uyarlaması:** resmi manifest ve paket isteklerini aynı bağlantı katmanından geçirir; paket içeriğini ve manifestteki SHA-256 alanlarını korur.
 - **Ses bağlantısı desteği:** `discord.media` üzerindeki ses kontrol bağlantısının verdiği TLS portunu korur; 2053 portu ayrıca test edilmiştir. UDP ses paketleri doğrudan gider.
@@ -47,6 +47,20 @@ Discord'un arayüzünü yeniden yazmaz; hesap, sunucu ve mesajlaşma özellikler
 Hazır pakette Python veya Node.js kurulu olması gerekmez. Yama uygulandıktan sonra mevcut Discord kısayolu da o sürümü açabilir. Güncellemelerin izlenmesi için uygulamayı Discord Unbound üzerinden başlatmak önerilir.
 
 Geri dönmek için Discord'u tamamen kapatıp **Orijinale dön** seçeneğini kullan. Bu işlem, gözlemcinin aynı kuruluma yamayı yeniden uygulamasını da durdurur.
+
+## Normal tarayıcıda Discord sitesi
+
+**Web erişimini aç** düğmesine bas. Ardından Brave, Chrome, Edge veya Windows'un proxy ayarlarını kullanan tarayıcında normal `https://discord.com` adresini açabilirsin. Eklenti, ayrı tarayıcı profili veya uzak sunucu gerekmez. **Discord sitesini aç** düğmesi aynı özelliği açıp varsayılan tarayıcıyı başlatır. Web modu Discord masaüstü uygulaması kurulu olmadan da çalışabilir.
+
+- Yerel yardımcı yalnızca `127.0.0.1` üzerinde çalışır; yalnızca Discord adresleri ona yönlendirilir.
+- Diğer siteler önceki doğrudan/manual proxy/PAC yolunu korur. Erişilebilir eski PAC betiği başlangıçta alınıp yeni kuralla birleştirilir.
+- **Web erişimini kapat** veya pencereyi kapatmak önceki ayarları geri yükler. Komut satırından açılan yardımcı, açıkça kapatılana kadar arka planda kalır.
+- Bağımsız kurtarma gözeticisi, yardımcı beklenmedik biçimde kapanırsa ayarları geri yükler. Başka bir uygulamanın sonradan değiştirdiği PAC adresinin üzerine yazılmaz.
+- Windows başlangıcına servis/görev eklenmez; WinHTTP makine ayarı, sistem DNS'i, rota, güvenlik duvarı ve sertifika deposu değiştirilmez.
+
+Bu sürüm geçerli kullanıcının varsayılan LAN internet ayarını kullanır. Tarayıcı kendi proxy ayarını/eklentisini kullanıyorsa Windows ayarını izlemeyebilir. Yalnızca WPAD otomatik keşfine dayanan mevcut bir politika güvenle birleştirilemediğinde etkinleştirme reddedilir. Eski PAC erişilemeyen bir yerel adrese işaret ediyorsa adres yedeklenir, etkin oturumda eski manual/doğrudan fallback kullanılır ve kapatınca özgün ayar geri gelir. Eski PAC betiğinin sunucuda değişmesi durumunda yardımcı yeniden başlatılmalıdır.
+
+Web modunda TLS sertifika doğrulaması açık kalır. Ödeme sağlayıcıları doğrudan gider; gerçek ödeme veya 3D Secure işlemi test edilmiş değildir.
 
 ## Mimari
 
@@ -96,9 +110,9 @@ Gözlemci yaklaşık üç saniyede bir sürüm dizinlerini kontrol eder. Arşiv 
 | Ses kontrolü | `discord.media:2053`, WebSocket 101, HELLO opcode 8 |
 | Güncelleme kontrolü | Yerel güncelleyici manifest kontrolünü geçerek ana ekranı açtı |
 | Paket bütünlüğü | 19.137 baytlık resmi modül paketi indirildi; SHA-256 manifestle eşleşti |
-| Otomatik testler | 19 Python + 14 Node.js testi |
+| Otomatik testler | 30 Python + 14 Node.js testi |
 
-**Satın alma kapsamı:** Nitro'nun genel sayfası ve Stripe'ın genel SDK bağlantısı izole Electron testinde açıldı. Gerçek satın alma, abonelik veya 3D Secure işlemi yapılmadı. Ödeme sağlayıcıları doğrudan bağlantıda kalır. İşletim sistemi tarayıcısında açılan akışlar bu uygulamanın PAC ayarını kullanmaz. [Ayrıntılı uyumluluk incelemesi](docs/COMPATIBILITY.md).
+**Satın alma kapsamı:** Nitro'nun genel sayfası ve Stripe'ın genel SDK bağlantısı izole Electron testinde açıldı. Gerçek satın alma, abonelik veya 3D Secure işlemi yapılmadı. Ödeme sağlayıcıları doğrudan bağlantıda kalır. Masaüstü yaması dış tarayıcıyı kapsamaz; isteğe bağlı web modu Windows proxy ayarını izleyen tarayıcılardaki Discord adreslerini kapsar. [Ayrıntılı uyumluluk incelemesi](docs/COMPATIBILITY.md).
 
 Bu sonuçlar incelenen bilgisayar ve bağlantı içindir. Diğer internet sağlayıcıları ve Discord sürümleri için aynı sonucu garanti etmez. Windows ARM64/32 bit, macOS ve Linux desteği doğrulanmadı. Video, ekran paylaşımı ve daha yeni bir ana Discord sürümünün baştan sona kurulması henüz test edilmedi. Hazır çalıştırılabilir dosya bu sürümde kod imzalı değildir.
 
@@ -110,6 +124,7 @@ Ağ engelinin IP düzeyinde olması veya ağın TLS kayıtlarını yeniden birle
 - Yama durumu ve dosya özetleri: `resources/app.asar.discordunbound.json`
 - Çalışma durumu: `%LOCALAPPDATA%\DiscordUnbound\runtime.json`
 - Gözlemci durumu: `%LOCALAPPDATA%\DiscordUnbound\watcher.json`
+- Web modu yedeği: `%LOCALAPPDATA%\DiscordUnbound\web-state.json` — önceki proxy ayarlarını ve yerel kontrol anahtarını içerir; bu dosyayı hata bildirimine ekleme.
 
 İlk yerel prototipte oluşturulan `.discordbridge.original` ve `.discordbridge.json` yedekleri de tanınır. Geri dönüş, mevcut dosyanın ve yedeğin özetini doğrular; değiştirilmiş bir arşivin üzerine eski dosyayı yazmaz. Yarım kalmış bir işlemde yedek ve durum dosyalarını silme.
 
@@ -139,6 +154,9 @@ node tests/probe-live.cjs docs/live-result.json
 .\DiscordUnbound.exe --list --report installations.json
 .\DiscordUnbound.exe --asar 'D:\Discord\app-1.0.9264\resources\app.asar' --patch --report patch-result.json
 .\DiscordUnbound.exe --version --report version.json
+.\DiscordUnbound.exe --web-start --report web-status.json
+.\DiscordUnbound.exe --web-stop
+.\DiscordUnbound.exe --web-status
 ```
 
 Derleme:

@@ -17,3 +17,6 @@ watcher.json
 installations.json
 patch-result.json
 version.json
+web-state.json
+web-status.json
+guard-*.ready

@@ -1,7 +1,8 @@
 # Verification — 21 October 2026
 
-- 19 Python tests passed: ASAR parsing and restoration, tamper detection,
-  fuse checks, version discovery, open-process protection and hook migration.
+- 30 Python tests passed: ASAR parsing and restoration, tamper detection,
+  fuse checks, version discovery, open-process protection, hook migration,
+  browser PAC composition, settings ownership and local proxy framing.
 - 14 Node tests passed: TLS framing, PAC scope, ports, native updater adapter,
   manifest URL rewriting, preserved hashes and binary streaming.
 - Public HTTPS / Gateway A/B probes passed with GoodbyeDPI stopped:
@@ -38,3 +39,20 @@ In a private Electron runtime, the public Nitro page and Stripe SDK returned 200
 the official update module retained its expected hash. This does not verify a
 purchase, subscription, gift redemption or 3-D Secure transaction. See
 `COMPATIBILITY.md` and `checkout-connectivity.json` for scope and results.
+
+## 0.2.0 local browser access
+
+The Windows PAC resolver selected the loopback helper for Discord, returning
+HTTP 200 with normal certificate validation. Cloudflare and Stripe remained
+DIRECT and also returned HTTP 200. Reloading an existing normal Brave tab
+rendered the Discord homepage after its earlier connection-reset error.
+
+Both source and packaged Windows executables passed normal shutdown and forced
+worker termination tests: the previous WinINet flags, proxy server, bypass and
+PAC URL were restored exactly. The packaged helper was then enabled again.
+GUI controls were constructed successfully, and the packaged helper started
+without a separately installed Python or Node runtime.
+
+These checks did not log in, submit payments or verify browser voice/video.
+See `WEB-ACCESS.md` and `web-connectivity.json`. Private settings snapshots and
+control credentials are deliberately excluded from published test reports.

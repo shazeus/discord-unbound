@@ -35,7 +35,7 @@ Discord provides the interface, accounts, servers and messaging features. This r
 ### Features
 
 - **Discord-specific routing:** Discord domains use the local adapter inside Electron sessions; other domains remain direct.
-- **No remote VPN server:** it does not tunnel the computer's general traffic or change system routing, DNS, proxy, firewall or certificate settings.
+- **No remote VPN server:** it does not tunnel general traffic. The desktop patch leaves system settings unchanged; optional web mode temporarily changes and restores only the current user's automatic proxy/PAC setting.
 - **TLS record splitting:** it preserves the bytes of the initial `ClientHello` while splitting its TLS records. Messaging TLS remains encrypted end to end; certificate verification stays enabled.
 - **Native updater integration:** official manifest and package requests use the same transport, preserving package bytes and manifest SHA-256 fields.
 - **Voice signaling:** it retains the TLS port supplied for `discord.media` voice-control connections; port 2053 has been tested. UDP audio remains direct.
@@ -54,6 +54,20 @@ Discord provides the interface, accounts, servers and messaging features. This r
 The packaged executable requires no separate Python or Node.js installation. Your existing Discord shortcut can open the patched version afterwards. Launching through Discord Unbound is recommended when you want the version observer to run.
 
 To restore the original, fully quit Discord and choose **Orijinale dön** — “Restore original.” This also prevents the observer from immediately reapplying the patch to that installation.
+
+## Discord in your normal browser
+
+Click **Web erişimini aç** — “Enable web access” — then visit `https://discord.com` in Brave, Chrome, Edge or a browser that follows Windows proxy settings. No extension, separate profile or remote server is required. **Discord sitesini aç** enables the helper and opens the default browser. Web mode does not require the Discord desktop client to be installed.
+
+- The helper listens only on `127.0.0.1` and routes only Discord targets through its local transport.
+- Other sites retain the previous direct/manual proxy/PAC route. A reachable existing PAC script is fetched at startup and composed with the Discord rule.
+- **Web erişimini kapat** or closing the window restores previous settings. A helper started from the CLI stays in the background until explicitly stopped.
+- An independent guard restores settings if the worker unexpectedly exits. A PAC URL subsequently changed by another application is not overwritten.
+- No startup service/task is installed. Machine-level WinHTTP, system DNS, routing, firewall and certificate settings are unchanged.
+
+This version uses the current user's default LAN internet settings. Browsers with their own proxy settings or extensions may ignore Windows configuration. WPAD-only policies are refused when they cannot be composed safely. If a previous PAC points to an unreachable loopback service, its address is backed up, its manual/direct fallback is retained while enabled and its original setting is restored afterwards. Restart the helper if the previous PAC script changes on its server.
+
+TLS certificate validation remains enabled. Payment providers remain direct; a real payment or 3-D Secure transaction is still unverified.
 
 ## Architecture
 
@@ -103,9 +117,9 @@ The observer checks version directories approximately every three seconds. An ar
 | Voice signaling | `discord.media:2053`, WebSocket 101, HELLO opcode 8 |
 | Update check | Native updater passed its manifest check and the main UI opened |
 | Package integrity | Official 19,137-byte module downloaded; SHA-256 matched its manifest |
-| Automated tests | 19 Python + 14 Node.js tests, including release migration checks |
+| Automated tests | 30 Python + 14 Node.js tests, including release migration checks |
 
-**Purchase coverage:** The public Nitro page and Stripe's public SDK loaded in an isolated Electron test. No real purchase, subscription or 3-D Secure transaction was attempted. Payment providers remain direct. Flows opening the operating-system browser do not use the application's PAC settings. See the [compatibility audit](docs/COMPATIBILITY.md).
+**Purchase coverage:** The public Nitro page and Stripe's public SDK loaded in an isolated Electron test. No real purchase, subscription or 3-D Secure transaction was attempted. Payment providers remain direct. The desktop patch does not cover external browsers; optional web mode covers Discord URLs in browsers following Windows proxy settings. See the [compatibility audit](docs/COMPATIBILITY.md).
 
 These results apply to the tested machine and network. They do not guarantee the same result with other providers or Discord versions. Windows ARM64/32-bit, macOS and Linux are unverified. Video, screen sharing and installing a newer main Discord version end to end have not been tested. This release's executable is not code-signed.
 
@@ -117,6 +131,7 @@ IP-level blocking or filtering that reassembles TLS records can require a differ
 - Patch state and hashes: `resources/app.asar.discordunbound.json`
 - Runtime status: `%LOCALAPPDATA%\DiscordUnbound\runtime.json`
 - Observer status: `%LOCALAPPDATA%\DiscordUnbound\watcher.json`
+- Web-mode backup: `%LOCALAPPDATA%\DiscordUnbound\web-state.json` — contains prior proxy settings and a local control secret; do not include this file in issue reports.
 
 Legacy `.discordbridge.original` and `.discordbridge.json` files from the initial local prototype are also recognized. Restoration verifies both the current archive and backup hashes rather than overwriting an altered archive. Keep backup and state files if an operation is interrupted.
 
@@ -146,6 +161,9 @@ Custom installation path and machine-readable output:
 .\DiscordUnbound.exe --list --report installations.json
 .\DiscordUnbound.exe --asar 'D:\Discord\app-1.0.9264\resources\app.asar' --patch --report patch-result.json
 .\DiscordUnbound.exe --version --report version.json
+.\DiscordUnbound.exe --web-start --report web-status.json
+.\DiscordUnbound.exe --web-stop
+.\DiscordUnbound.exe --web-status
 ```
 
 Build:

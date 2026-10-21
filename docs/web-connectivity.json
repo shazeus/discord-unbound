@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "platform": "Windows x64",
+  "https": {
+    "discord.com": {"route": "loopback-proxy", "http_status": 200, "certificate_validation": true},
+    "www.cloudflare.com": {"route": "DIRECT", "http_status": 200, "certificate_validation": true},
+    "js.stripe.com": {"route": "DIRECT", "http_status": 200, "certificate_validation": true}
+  },
+  "normal_brave_tab_rendered_discord_homepage": true,
+  "source_and_packaged_executable": {
+    "start": true,
+    "normal_stop_restored_exact_settings": true,
+    "forced_termination_restored_exact_settings": true
+  },
+  "payment_tested": false,
+  "browser_voice_video_tested": false
+}

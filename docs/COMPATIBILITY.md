@@ -1,5 +1,7 @@
 # Uyumluluk incelemesi / Compatibility audit
 
+**0.2.0 notu / update:** Aşağıdaki dış tarayıcı sınırı yalnızca masaüstü yaması için geçerlidir. İsteğe bağlı web modu, geçerli kullanıcı Windows PAC ayarını izleyen tarayıcılarda Discord adreslerini de yerel yardımcıya yönlendirir. Ödeme sağlayıcıları doğrudan gider; gerçek ödeme/3D Secure hâlâ doğrulanmış değildir. / The external-browser limitation below applies to the desktop patch alone. Optional web mode also routes Discord URLs in browsers following current-user Windows PAC settings. Payment providers remain direct; actual payments/3-D Secure remain unverified.
+
 21 Ekim / October 2026. Windows Discord Stable **1.0.9264**.
 
 ## Türkçe
