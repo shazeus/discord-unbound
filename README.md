@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/discord-unbound-logo.png" alt="Discord Unbound" width="760">
+  <img width="1774" height="887" alt="ChatGPT Görseli 26 Eki 2026 13_45_10" src="https://github.com/user-attachments/assets/3664d1e6-602d-4220-917e-fa33f4f5149e" />
 </p>
 
 <p align="center"><strong>Türkçe</strong> · <a href="README.en.md">English</a></p>
