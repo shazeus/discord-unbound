@@ -1,5 +1,15 @@
 # Sürüm geçmişi
 
+## 0.3.0 — 26 Ekim 2026
+
+- Kullanıcı oturumunda geri başlayan kalıcı gözlemci ve doğrulanmış başlatıcı kopyası.
+- Üç dakikalık kapanma sınırı kaldırıldı; yalnızca kayıtlı kanallar izleniyor.
+- En yeni sürüm açılmadan önce yamalanıyor; farklı sürümü seçebilen Update.exe aktarımı kaldırıldı.
+- Mevcut Discord başlangıç tercihi korunuyor; sahiplik denetimli kaldırma düğmesi.
+- Türkçe/İngilizce sağlayıcı ve test aşaması tabloları.
+- 39 Python + 14 Node.js testi. Fiziksel yeniden başlatma / gerçek ana sürüm yükseltmesi ayrıca doğrulanmalı.
+
+
 ## 0.2.0 — 21 Ekim 2026
 
 - Normal tarayıcılar için isteğe bağlı, yalnızca Discord'a yönlenen Windows PAC modu.

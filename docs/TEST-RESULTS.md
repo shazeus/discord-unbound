@@ -56,3 +56,11 @@ without a separately installed Python or Node runtime.
 These checks did not log in, submit payments or verify browser voice/video.
 See `WEB-ACCESS.md` and `web-connectivity.json`. Private settings snapshots and
 control credentials are deliberately excluded from published test reports.
+
+## 0.3.0 — 26 October 2026
+
+- 39 Python tests and 14 Node tests passed. New scenarios cover numeric newest-version launch with exact EXE selection, synthetic version arrival, active-client protection, verified active-patch recognition, persistent state reload, multi-channel isolation, existing-startup preference and ownership-preserving removal.
+- Packaged 0.3.0 launched the installed Discord Stable1.0.9265. The user confirmed loaded messages, voice channel connection and a working stream/screen share on Turkcell after relaunch.
+- The content-addressed durable EXE matched the built binary, returned version0.3.0 independently, and the current-user Run value matched the saved command. Discord had no existing recognized Run command on this PC; Discord autolaunch was not enabled.
+- Türk Telekom basic desktop operation is a user report; no separate browser/screen-share proof. Provider test scope is in both READMEs.
+- A physical reboot and a real new host-version download/install were not performed. Web startup is still session-only. Payment and camera-video tests remain unverified.

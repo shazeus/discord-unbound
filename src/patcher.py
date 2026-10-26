@@ -219,6 +219,22 @@ def inspect(asar_path):
     return {"path": str(Path(asar_path).absolute()), "sha256": _sha(data), "main": package.get("main"), "patched": marker is not None, "manifest": marker, "entry_count": len(entries)}
 
 
+def verify_patch(asar_path, hook_source):
+    """Read-only verification, including active clients; never rewrite an ASAR."""
+    info = inspect(asar_path)
+    if not info['patched']:
+        return False
+    _, backup, state_path = _paths(asar_path)
+    state = _load_json(_read(state_path))
+    if (not isinstance(state, dict) or state.get('schema') != SCHEMA or
+            info['sha256'] != state.get('patched_sha256') or
+            _sha(_read(backup)) != state.get('original_sha256')):
+        raise PatchError('Patch state or backup does not match current archive')
+    hook = hook_source.encode('utf-8') if isinstance(hook_source, str) else bytes(hook_source)
+    return (state.get('hook_sha256') == _sha(hook) and
+            info['manifest'].get('hook_sha256') == _sha(hook))
+
+
 def patch(asar_path, hook_source):
     """Install a hook entry point. Caller must first close every Discord process."""
     path, backup, state_path = _paths(asar_path)

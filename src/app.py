@@ -68,23 +68,8 @@ def assert_closed(asar):
 
 
 def find_asars():
-    base = Path(os.environ.get('LOCALAPPDATA', ''))
-    result = []
-    for channel in ('Discord', 'DiscordCanary', 'DiscordPTB'):
-        root = base / channel
-        if not root.is_dir():
-            continue
-        versions = []
-        for app in root.glob('app-*'):
-            try:
-                version = tuple(int(n) for n in app.name[4:].split('.'))
-            except ValueError:
-                continue
-            asar = app / 'resources' / 'app.asar'
-            if asar.is_file(): versions.append((version, asar))
-        for _, asar in sorted(versions, reverse=True):
-            result.append(asar)
-    return result
+    import patcher
+    return [Path(item['asar_path']) for item in patcher.discover()]
 
 
 def hook_source():
@@ -115,63 +100,118 @@ def restore_from(asar):
     assert_closed(asar)
     # A running observer must not immediately reapply a deliberately removed patch.
     disabled_marker(asar).write_text('{"disabled":true}', encoding='utf-8')
-    return patcher.restore(asar)
+    result = patcher.restore(asar)
+    import persistence
+    persistence.disable(STATE, Path(asar).resolve().parent.parent.parent)
+    return result
+
+
+def disable_startup(asar):
+    import persistence
+    disabled_marker(asar).write_text('{"disabled":true}', encoding='utf-8')
+    persistence.disable(STATE, Path(asar).resolve().parent.parent.parent)
+    return {'status': 'startup_disabled'}
+
+
+def prepare_latest(root):
+    """Resolve again at launch; Update.exe may otherwise select a different ASAR."""
+    import patcher
+    candidates = patcher.discover(Path(root))
+    if not candidates:
+        raise RuntimeError('Discord kurulumu bulunamadi.')
+    asar = Path(candidates[0]['asar_path'])
+    for attempt in range(10):
+        try:
+            apply_to(asar, explicit=False)
+            return asar
+        except patcher.PatchError as exc:
+            if 'patch lock' not in str(exc) or attempt == 9:
+                raise
+            time.sleep(.2)
+
+
+def watcher_step(seen, pending, root_keys=None):
+    """One stable-file pass, scoped to explicitly registered channels."""
+    import persistence
+    import patcher
+    roots = persistence.read(STATE)['roots']
+    for asar in find_asars():
+        root = asar.resolve().parent.parent.parent
+        if (persistence.key(root) not in roots or
+                (root_keys is not None and persistence.key(root) not in root_keys) or
+                disabled_marker(asar).exists()):
+            continue
+        try:
+            sig = (asar.stat().st_size, asar.stat().st_mtime_ns)
+            identity = str(asar)
+            if seen.get(identity) == sig:
+                continue
+            if pending.get(identity) != sig:
+                pending[identity] = sig
+                continue
+            if not patcher.verify_patch(asar, hook_source()):
+                assert_closed(asar)
+                apply_to(asar, explicit=False)
+            seen[identity] = (asar.stat().st_size, asar.stat().st_mtime_ns)
+            status = {'status': 'patched', 'version': asar.parent.parent.name}
+        except Exception as exc:
+            status = {'status': 'waiting_or_unsupported', 'version': asar.parent.parent.name,
+                      'error_type': type(exc).__name__}
+        (STATE / 'watcher.json').write_text(json.dumps(status), encoding='utf-8')
 
 
 def run_watcher():
-    """Only monitor installations while this launcher session is alive; no autostart."""
+    """Resume per-user registrations until deliberately disabled; never kill Discord."""
+    import persistence
     # Named mutex prevents multiple supervisors applying the same patch.
     k = ctypes.WinDLL('kernel32', use_last_error=True)
     k.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
     k.CreateMutexW.restype = wintypes.HANDLE
-    handle = k.CreateMutexW(None, False, 'Local\\DiscordBridge.UpdateWatcher.v1')
+    identity = hashlib.sha256(subprocess.list2cmdline(runner()).casefold().encode()).hexdigest()[:20]
+    handle = k.CreateMutexW(None, False, 'Local\\DiscordUnbound.UpdateWatcher.' + identity)
     if ctypes.get_last_error() == 183:
+        k.CloseHandle.argtypes = [wintypes.HANDLE]; k.CloseHandle(handle)
         return
-    idle_since = time.monotonic()
     seen = {}
     pending = {}
     try:
-        while time.monotonic() - idle_since < 180:
-            if discord_processes(): idle_since = time.monotonic()
-            for asar in find_asars():
-                try:
-                    if disabled_marker(asar).exists(): continue
-                    sig = (asar.stat().st_size, asar.stat().st_mtime_ns)
-                    if seen.get(str(asar)) == sig: continue
-                    # An updater may still be writing a newly discovered archive.
-                    if pending.get(str(asar)) != sig:
-                        pending[str(asar)] = sig
-                        continue
-                    assert_closed(asar)
-                    apply_to(asar, explicit=False)
-                    seen[str(asar)] = (asar.stat().st_size, asar.stat().st_mtime_ns)
-                    (STATE / 'watcher.json').write_text(json.dumps({'status': 'patched', 'version': asar.parent.parent.name}), encoding='utf-8')
-                except RuntimeError:
-                    continue
-                except Exception as exc:
-                    # Save class only: exception messages from third-party artifacts can contain private paths.
-                    (STATE / 'watcher.json').write_text(json.dumps({'status': 'unsupported', 'error_type': type(exc).__name__}), encoding='utf-8')
-            time.sleep(3)
+        while True:
+            entries = persistence.read(STATE)['roots']
+            current = [str(Path(part).resolve()).casefold() for part in runner()]
+            owned = {key for key, entry in entries.items()
+                     if [str(Path(part).resolve()).casefold() for part in entry['runner']] == current}
+            if not owned:
+                break
+            watcher_step(seen, pending, owned)
+            time.sleep(1)
     finally:
         k.CloseHandle.argtypes = [wintypes.HANDLE]; k.CloseHandle(handle)
 
 
-def launch(asar):
-    # Launch via official updater to retain official update flow.
+def launch(asar, register=True):
+    import persistence
     app_dir = Path(asar).parent.parent
     root = app_dir.parent
-    exe = next((p for p in app_dir.glob('*.exe') if p.name.lower() in ('discord.exe', 'discordcanary.exe', 'discordptb.exe')), None)
-    if exe is None: raise RuntimeError('Discord calistirilabilir dosyasi bulunamadi.')
     for proc in discord_processes():
         if proc['path'] is None or root.resolve() in Path(proc['path']).resolve().parents:
             raise RuntimeError('Discord zaten acik. Yamayi kullanmak icin tamamen kapatip tekrar acin.')
-    command = [sys.executable, '--watch'] if getattr(sys, 'frozen', False) else [sys.executable, str(Path(__file__).resolve()), '--watch']
-    watcher_env = os.environ.copy()
-    if getattr(sys, 'frozen', False): watcher_env['PYINSTALLER_RESET_ENVIRONMENT'] = '1'
-    subprocess.Popen(command, creationflags=subprocess.CREATE_NO_WINDOW, close_fds=True, env=watcher_env)
-    updater = root / 'Update.exe'
-    args = [str(updater), '--processStart', exe.name] if updater.is_file() else [str(exe)]
-    subprocess.Popen(args, cwd=str(root), close_fds=True)
+    if register:
+        persistent_runner = persistence.enable(STATE, root)
+    else:
+        entry = persistence.read(STATE)['roots'].get(persistence.key(root))
+        if not entry or disabled_marker(asar).exists():
+            raise RuntimeError('Bu kurulum icin kalici baslatma etkin degil.')
+        persistent_runner = entry['runner']
+    # Patch the numerically newest complete version before starting that exact EXE.
+    # Its native in-app update checks still run; no stale Update.exe selection.
+    selected = prepare_latest(root)
+    app_dir = selected.parent.parent
+    name = {'Discord': 'Discord.exe', 'DiscordCanary': 'DiscordCanary.exe', 'DiscordPTB': 'DiscordPTB.exe'}[root.name]
+    exe = app_dir / name
+    if not exe.is_file():
+        raise RuntimeError('Discord calistirilabilir dosyasi bulunamadi.')
+    persistence.spawn(persistent_runner + ['--watch'])
+    subprocess.Popen([str(exe)], cwd=str(app_dir), close_fds=True)
 
 
 def runner():
@@ -182,7 +222,7 @@ def gui():
     import tkinter as tk
     from tkinter import ttk
     import patcher
-    root = tk.Tk(); root.title('Discord Unbound | Deneysel 0.2.0'); root.geometry('740x650'); root.minsize(680, 600)
+    root = tk.Tk(); root.title('Discord Unbound | Deneysel 0.3.0'); root.geometry('740x680'); root.minsize(680, 640)
     assets = HERE / 'assets' if getattr(sys, 'frozen', False) else Path(__file__).resolve().parents[1] / 'assets'
     root._brand_icon = tk.PhotoImage(file=str(assets / 'discord-unbound-icon.png'))
     root.iconphoto(True, root._brand_icon)
@@ -190,6 +230,7 @@ def gui():
     ttk.Label(frame, text='Discord Unbound', font=('Segoe UI', 23, 'bold')).pack(anchor='w')
     ttk.Label(frame, text='Orijinal Discord için yerel bağlantı yaması · Shazeus', font=('Segoe UI', 11)).pack(anchor='w', pady=(0, 15))
     ttk.Label(frame, text='Deneysel: Uyumluluk internet saglayicisina ve Discord surumune gore degisebilir.', wraplength=650).pack(anchor='w')
+    ttk.Label(frame, text='Yamala ve aç: kullanıcı başlangıcına gözlemci ekler; ZIP klasörü silinse de sürer. Orijinale dön bu kaydı kaldırır.', wraplength=650).pack(anchor='w', pady=(6, 0))
     choices = ttk.Combobox(frame, state='readonly'); choices.pack(fill='x', pady=16)
     log = tk.Text(frame, height=10, wrap='word', font=('Segoe UI', 10)); log.pack(fill='both', expand=True)
     controls = ttk.Frame(frame); controls.pack(fill='x', pady=(16, 0))
@@ -208,11 +249,13 @@ def gui():
         for b in buttons: b.config(state='disabled')
         def task():
             try:
-                if kind == 'restore':
+                if kind == 'disable':
+                    disable_startup(asar); say('Başlangıç kaydı kaldırıldı. Kalıcı gözlemci duracak; mevcut yama değiştirilmedi.')
+                elif kind == 'restore':
                     restore_from(asar); say('Orijinal dosya geri yuklendi.')
                 else:
                     result = apply_to(asar); say('Yama hazir: ' + result.get('status', 'ok'))
-                    if kind == 'launch': launch(asar); say('Discord baslatildi. Guncelleme gozlemcisi bu oturumda etkin.')
+                    if kind == 'launch': launch(asar); say('En yeni Discord sürümü yamalanıp açıldı. Gözlemci Windows oturum açılışında yeniden başlayacak.')
             except Exception as exc: say(f'Islem tamamlanmadi: {exc}')
             finally:
                 root.after(0, lambda: [b.config(state='normal') for b in buttons])
@@ -220,6 +263,8 @@ def gui():
     buttons = []
     for label, kind in [('Yamala ve aç', 'launch'), ('Yalnızca yamala', 'patch'), ('Orijinale dön', 'restore')]:
         b = ttk.Button(controls, text=label, command=lambda k=kind: action(k)); b.pack(side='left', padx=(0, 10)); buttons.append(b)
+    b = ttk.Button(frame, text='Başlangıç kaydını ve kalıcı izlemeyi kapat', command=lambda: action('disable'))
+    b.pack(anchor='w', pady=(10, 0)); buttons.append(b)
     ttk.Separator(frame).pack(fill='x', pady=(18, 10))
     ttk.Label(frame, text='Normal tarayıcıda Discord', font=('Segoe UI', 12, 'bold')).pack(anchor='w')
     ttk.Label(frame, text='Yalnızca Discord adresleri yerel yardımcıdan geçer. Kapatınca önceki Windows PAC ayarı geri yüklenir.', wraplength=670).pack(anchor='w', pady=(4, 8))
@@ -266,11 +311,15 @@ def gui():
 def main():
     parser = argparse.ArgumentParser(description='DiscordUnbound experimental Windows patcher')
     parser.add_argument('--watch', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--managed-root', type=Path, help=argparse.SUPPRESS)
     parser.add_argument('--list', action='store_true')
     parser.add_argument('--version', action='store_true')
     parser.add_argument('--asar', type=Path)
     parser.add_argument('--patch', action='store_true')
     parser.add_argument('--restore', action='store_true')
+    parser.add_argument('--disable-startup', action='store_true')
+    parser.add_argument('--enable-startup', action='store_true')
     parser.add_argument('--launch', action='store_true')
     parser.add_argument('--inspect', action='store_true')
     parser.add_argument('--web-start', action='store_true', help='Enable Discord-only Windows browser PAC')
@@ -284,7 +333,21 @@ def main():
         data = json.dumps(value, indent=2, default=str)
         if args.report: args.report.write_text(data, encoding='utf-8')
         elif sys.stdout is not None: print(data)
-    if args.watch: return run_watcher()
+    if args.watch or args.resume: return run_watcher()
+    if args.managed_root:
+        root = args.managed_root.resolve()
+        import persistence
+        if persistence.key(root) not in persistence.read(STATE)['roots']:
+            raise RuntimeError('Kurulum kayitli degil.')
+        # A duplicate Windows startup invocation must not touch an active client.
+        for proc in discord_processes():
+            if proc['path'] is None or root in Path(proc['path']).resolve().parents:
+                return
+        import patcher
+        candidates = patcher.discover(root)
+        if not candidates: raise RuntimeError('Discord kurulumu bulunamadi.')
+        launch(Path(candidates[0]['asar_path']), register=False)
+        return
     if args.web_worker or args.web_guard is not None or args.web_start or args.web_stop or args.web_status:
         import web_access
         if args.web_worker: return web_access.worker(runner())
@@ -294,12 +357,21 @@ def main():
         else: emit(web_access.status())
         return
     if args.version:
-        emit({'version': '0.2.0', 'hook_sha256': hashlib.sha256(hook_source().encode('utf-8')).hexdigest()}); return
+        emit({'version': '0.3.0', 'hook_sha256': hashlib.sha256(hook_source().encode('utf-8')).hexdigest()}); return
     if args.list:
         emit([str(p) for p in find_asars()]); return
     if args.asar:
         import patcher
-        if args.restore:
+        if args.enable_startup:
+            import persistence
+            if not patcher.verify_patch(args.asar, hook_source()):
+                raise RuntimeError('Once Discord kapaliyken guncel yamayi uygulayin.')
+            command = persistence.enable(STATE, args.asar.resolve().parent.parent.parent)
+            persistence.spawn(command + ['--watch'])
+            result = {'status': 'startup_enabled'}
+        elif args.disable_startup:
+            result = disable_startup(args.asar)
+        elif args.restore:
             result = restore_from(args.asar)
         elif args.patch or args.launch:
             result = apply_to(args.asar)
